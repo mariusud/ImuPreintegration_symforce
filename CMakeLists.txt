@@ -8,7 +8,7 @@ endif()
 
 project(IMU-preintegration)
 
-set(CMAKE_CXX_STANDARD 14)
+set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 
@@ -27,7 +27,7 @@ find_package(PCL  REQUIRED)
 include_directories(${PCL_INCLUDE_DIRS})
 
 
-add_executable(run_imu_preintegration src/main.cc src/data.cc)
+add_executable(run_imu_preintegration src/main.cc src/data.cc src/loadKittiData.cc)
 
 # Add dependencies
 add_dependencies(

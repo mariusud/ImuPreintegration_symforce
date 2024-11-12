@@ -1,5 +1,6 @@
 #ifndef DATA_H
 #define DATA_H
+#include "loadKittiData.h"
 #include <Eigen/Dense>
 #include <iostream>
 #include <pcl/point_cloud.h>
@@ -20,16 +21,16 @@ enum Var : char {
   EPSILON = 'e'     // Scalar
 };
 
-struct ImuMeasurement {
-  Eigen::Vector3d acceleration;
-  Eigen::Vector3d angular_velocity;
-  double timestamp;
-};
+// struct ImuMeasurement {
+//   Eigen::Vector3d acceleration;
+//   Eigen::Vector3d angular_velocity;
+//   double timestamp;
+// };
 
-struct GpsMeasurement {
-  double time;
-  Eigen::Vector3d position; // x, y, z
-};
+// struct GpsMeasurement {
+//   double time;
+//   Eigen::Vector3d position; // x, y, z
+// };
 
 void createExampleStraightTrajectory(
     std::vector<ImuMeasurement> &imu_measurements,

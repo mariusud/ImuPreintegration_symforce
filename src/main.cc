@@ -1,5 +1,5 @@
 #include "data.h"
-
+#include "loadKittiData.h"
 #include <iomanip>
 
 #include <sym/pose3.h>
@@ -25,50 +25,46 @@ GetMeasurementsBetween(double start_time, double end_time,
                        const std::vector<ImuMeasurement> &imu_measurements) {
   std::vector<ImuMeasurement> result;
   for (const auto &meas : imu_measurements) {
-    if (meas.timestamp >= start_time && meas.timestamp <= end_time) {
+    if (meas.time >= start_time && meas.time <= end_time) {
       result.push_back(meas);
     }
   }
   return result;
 }
 
-std::vector<double>
-GetKeyFrameTimes(const std::vector<GpsMeasurement> &gps_measurements) {
-  std::vector<double> key_frame_times;
-  for (const auto &gps : gps_measurements) {
-    key_frame_times.push_back(gps.time);
-  }
-  return key_frame_times;
-}
-
-std::vector<sym::Factord>
-createIMUfactors(const std::vector<double> &key_frame_times,
-                 const std::vector<ImuMeasurement> &imu_measurements) {
+std::pair<sym::Valuesd, std::vector<sym::Factord>>
+buildValuesAndFactors(const std::vector<ImuMeasurement> &imu_measurements,
+                      const std::vector<GpsMeasurement> &gps_measurements) {
+  // Build Values
+  sym::Valuesd values;
   std::vector<sym::Factord> factors;
-
+  int first_gps_pose = 0;
+  int gps_skip = 10;
   const Eigen::Vector3d accel_cov = Eigen::Vector3d::Constant(1e-5);
   const Eigen::Vector3d gyro_cov = Eigen::Vector3d::Constant(1e-5);
 
-  // For each gps factor
-  for (int i = 0; i < static_cast<int>(key_frame_times.size()) - 1; i++) {
-    const double start_time = key_frame_times[i];
-    const double end_time = key_frame_times[i + 1];
+  // gravity should point towards the direction of accelerometer
+  // ENU
+  values.Set({Var::GRAVITY}, Eigen::Vector3d(0.0, 0.0, -9.81));
+  values.Set({Var::EPSILON}, sym::kDefaultEpsilond);
 
-    // get all 10 IMU measurements from this time period
-    const std::vector<ImuMeasurement> measurements =
-        GetMeasurementsBetween(start_time, end_time, imu_measurements);
+  for (size_t i = first_gps_pose; i < gps_measurements.size() - 1; i++) {
 
-    sym::ImuPreintegrator<double> integrator(GetAccelBiasEstimate(start_time),
-                                             GetGyroBiasEstimate(start_time));
+    if (i == first_gps_pose) {
+      // TODO: create initial estimate and prior
+    }
+
+    const std::vector<ImuMeasurement> selected_imu_measurements =
+        GetMeasurementsBetween(gps_measurements[i - 1], gps_measurements[i],
+                               imu_measurements);
+    sym::ImuPreintegrator<double> integrator(accel_bias, gyro_bias);
 
     // Integrate the measurrements together
-    for (size_t i = 0; i < measurements.size() - 1; ++i) {
-      const ImuMeasurement &meas = measurements[i];
-      double duration = measurements[i + 1].timestamp - meas.timestamp;
-      integrator.IntegrateMeasurement(meas.acceleration, meas.angular_velocity,
-                                      accel_cov, gyro_cov, duration);
+    for (const auto &meas : selected_imu_measurements) {
+      integrator.IntegrateMeasurement(meas.accelerometer, meas.gyroscope,
+                                      accel_cov, gyro_cov, meas.dt);
     }
-    // add single ImuFactor from the 10 pre-integrated IMU measurrements
+    // add single ImuFactor from the pre-integrated IMU measurrements
     factors.push_back(sym::ImuFactor<double>(integrator)
                           .Factor({{Var::POSE, i},
                                    {Var::VELOCITY, i},
@@ -78,56 +74,51 @@ createIMUfactors(const std::vector<double> &key_frame_times,
                                    {Var::GYRO_BIAS, i},
                                    {Var::GRAVITY},
                                    {Var::EPSILON}}));
-  }
-  return factors;
-}
 
-sym::Valuesd optimizeImu(std::vector<sym::Factord> &factors,
-                         const std::vector<double> &key_frame_times,
-                         const std::vector<GpsMeasurement> &gps_measurements) {
-  sym::Optimizerd optimizer(sym::DefaultOptimizerParams(), factors);
+    // add between factors for bias
+    // TODO: create these factors in generate.py
+    factors.push_back(accel_bias_factor);
+    factors.push_back(gyro_bias_factor);
 
-  // Build Values
-  sym::Valuesd values;
-  for (int i = 0; i < key_frame_times.size(); i++) {
+    if (i % gps_skip == 0) {
+      // add relative factor for gps
+      // PriorFactorPose3
+      // ssqrt for rot should be zeros
+      // prior - value
+      factors.push_back(sym::Factord::Hessian(
+          sym::PriorFactorPose3<double>,
+          {sym::Keys::POSE.WithSuper(i + 1), sym::Keys::POSE.WithSuper(i),
+           sym::Keys::SQRT_INFO, sym::Keys::epsilon}));
+    }
+
     values.Set({Var::POSE, i},
                sym::Pose3d(sym::Rot3d(), gps_measurements[i].position));
-    // values.Set({Var::POSE, i}, sym::Pose3d());
-
+    // use IMU prediction here
     values.Set({Var::VELOCITY, i}, Eigen::Vector3d::Zero());
+
+    values.Set({Var::ACCEL_BIAS, i}, GetAccelBiasEstimate(i));
+    values.Set({Var::GYRO_BIAS, i}, GetGyroBiasEstimate(i));
   }
-  for (int i = 0; i < key_frame_times.size() - 1; i++) {
-    values.Set({Var::ACCEL_BIAS, i}, GetAccelBiasEstimate(key_frame_times[i]));
-    values.Set({Var::GYRO_BIAS, i}, GetGyroBiasEstimate(key_frame_times[i]));
-  }
 
-  // gravity should point towards the direction of acceleration
-  // ENU
-  values.Set({Var::GRAVITY}, Eigen::Vector3d(0.0, 0.0, 0));
-  values.Set({Var::EPSILON}, sym::kDefaultEpsilond);
-
-  visualizeTrajectory(values, gps_measurements);
-
-  optimizer.Optimize(values);
-  return values;
+  return {values, factors};
 }
 
 int main() {
-
+  KittiCalibration kitti_calibration;
   std::vector<ImuMeasurement> imu_measurements;
   std::vector<GpsMeasurement> gps_measurements;
-  createExampleStraightTrajectory(imu_measurements, gps_measurements);
-  visualizeData(imu_measurements, gps_measurements, 10);
 
-  std::vector<double> key_frame_times = GetKeyFrameTimes(gps_measurements);
+  loadKittiData(kitti_calibration, imu_measurements, gps_measurements);
 
-  std::vector<sym::Factord> factors =
-      createIMUfactors(key_frame_times, imu_measurements);
+  visualizeData(imu_measurements, gps_measurements, 2);
 
-  sym::Valuesd optimized_values =
-      optimizeImu(factors, key_frame_times, gps_measurements);
+  auto [values, factors] =
+      buildValuesAndFactors(imu_measurements, gps_measurements);
 
-  visualizeTrajectory(optimized_values, gps_measurements);
+  sym::Optimizerd optimizer(sym::DefaultOptimizerParams(), factors);
+  optimizer.Optimize(values);
+
+  visualizeTrajectory(values, gps_measurements);
 
   return 0;
 }

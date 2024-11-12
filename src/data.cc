@@ -1,44 +1,10 @@
 
 #include "data.h"
 
-// Simulate a straight-line trajectory with noise
-void createExampleStraightTrajectory(
-    std::vector<ImuMeasurement> &imu_measurements,
-    std::vector<GpsMeasurement> &gps_measurements) {
-
-  const double imu_frequency = 100.0;            // IMU updates at 100 Hz
-  const double gps_frequency = 10.0;             // GPS updates at 10 Hz
-  const double duration = 10.0;                  // Total time in seconds
-  const Eigen::Vector3d velocity(1.0, 0.0, 0.0); // Robot moving in +X direction
-
-  std::random_device rd;
-  std::mt19937 gen(rd());
-  std::normal_distribution<> noise(0.0, 0.01);
-
-  for (double t = 0.0; t <= duration; t += 1.0 / imu_frequency) {
-    ImuMeasurement imu;
-    imu.timestamp = t;
-
-    // Assume perfect acceleration along X, with small noise
-    imu.acceleration = Eigen::Vector3d(0.0, 0.0, 0.0);
-    imu.angular_velocity =
-        Eigen::Vector3d(0.0, 0.0, 0.0) + Eigen::Vector3d::Random() * 0.01;
-    imu_measurements.push_back(imu);
-  }
-
-  for (double t = 0.0; t <= duration; t += 1.0 / gps_frequency) {
-    GpsMeasurement gps;
-    gps.time = t;
-    gps.position =
-        velocity * t + Eigen::Vector3d(noise(gen), noise(gen), noise(gen));
-    gps_measurements.push_back(gps);
-  }
-}
-
 void visualizeTrajectory(const sym::Valuesd &optimized_values,
                          const std::vector<GpsMeasurement> &gps_measurements) {
 
-  pcl::visualization::PCLVisualizer viewer("Trajectory Viewer");
+  pcl::visualization::PCLVisualizer viewer("KITTI Trajectory Viewer");
 
   // Create point clouds for IMU and GPS
   pcl::PointCloud<pcl::PointXYZ>::Ptr optimized_imu_cloud(
@@ -62,8 +28,10 @@ void visualizeTrajectory(const sym::Valuesd &optimized_values,
     gps_point.y = gps.position[1];
     gps_point.z = gps.position[2];
     gps_cloud->points.push_back(gps_point);
-    std::cout << "IMU Pose: " << pose.Position().transpose() << "\t"
-              << "GPS Pose: " << gps.position.transpose() << std::endl;
+    if (i < 5) {
+      std::cout << "Sample IMU Pose: " << pose.Position().transpose() << "\t"
+                << "Sample GPS Pose: " << gps.position.transpose() << std::endl;
+    }
   }
 
   viewer.addPointCloud(optimized_imu_cloud, "optimized imu cloud");
@@ -103,7 +71,7 @@ void visualizeData(const std::vector<ImuMeasurement> &imu_measurements,
   size_t gps_to_display = std::min(num_to_visualize, gps_measurements.size());
   size_t imu_to_display = std::min(num_to_visualize, imu_measurements.size());
 
-  std::cout << "GPS Measurements:\n";
+  std::cout << "Sample GPS Measurements:\n";
   std::cout << std::setw(10) << "Time" << std::setw(15) << "Position (X)"
             << std::setw(15) << "Position (Y)" << std::setw(15)
             << "Position (Z)"
@@ -116,7 +84,7 @@ void visualizeData(const std::vector<ImuMeasurement> &imu_measurements,
               << gps.position.y() << std::setw(15) << gps.position.z() << "\n";
   }
 
-  std::cout << "\nIMU Measurements:\n";
+  std::cout << "\nSample IMU Measurements:\n";
   std::cout << std::setw(10) << "Time" << std::setw(15) << "Accel (X)"
             << std::setw(15) << "Accel (Y)" << std::setw(15) << "Accel (Z)"
             << std::setw(15) << "AngVel (X)" << std::setw(15) << "AngVel (Y)"
@@ -125,12 +93,11 @@ void visualizeData(const std::vector<ImuMeasurement> &imu_measurements,
 
   for (size_t i = 0; i < imu_to_display; ++i) {
     const auto &imu = imu_measurements[i];
-    std::cout << std::fixed << std::setprecision(4) << std::setw(10)
-              << imu.timestamp << std::setw(15) << imu.acceleration.x()
-              << std::setw(15) << imu.acceleration.y() << std::setw(15)
-              << imu.acceleration.z() << std::setw(15)
-              << imu.angular_velocity.x() << std::setw(15)
-              << imu.angular_velocity.y() << std::setw(15)
-              << imu.angular_velocity.z() << "\n";
+    std::cout << std::fixed << std::setprecision(4) << std::setw(10) << imu.time
+              << std::setw(15) << imu.accelerometer.x() << std::setw(15)
+              << imu.accelerometer.y() << std::setw(15) << imu.accelerometer.z()
+              << std::setw(15) << imu.gyroscope.x() << std::setw(15)
+              << imu.gyroscope.y() << std::setw(15) << imu.gyroscope.z()
+              << "\n";
   }
 }
