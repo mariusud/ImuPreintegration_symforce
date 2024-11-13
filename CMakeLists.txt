@@ -16,6 +16,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_INSTALL_PREFIX "/home/marius/Development/symforce")
 
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/include)
+include_directories(${CMAKE_CURRENT_SOURCE_DIR}/gen)
 include(FetchContent)
 include(cmake/AddThirdParty.cmake)
 
@@ -27,7 +28,7 @@ find_package(PCL  REQUIRED)
 include_directories(${PCL_INCLUDE_DIRS})
 
 
-add_executable(run_imu_preintegration src/main.cc src/data.cc src/loadKittiData.cc)
+add_executable(run_imu_preintegration src/main.cc src/data.cc src/loadKittiData.cc src/createFactors.cc)
 
 # Add dependencies
 add_dependencies(

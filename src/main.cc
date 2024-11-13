@@ -1,7 +1,4 @@
-#include "data.h"
-#include "loadKittiData.h"
-#include <iomanip>
-
+#include <stdio.h>
 #include <sym/pose3.h>
 #include <sym/util/epsilon.h>
 #include <symforce/opt/factor.h>
@@ -10,19 +7,18 @@
 #include <symforce/slam/imu_preintegration/imu_preintegrator.h>
 #include <symforce/slam/imu_preintegration/preintegrated_imu_measurements.h>
 
-Eigen::Vector3d GetAccelBiasEstimate(double time) {
-  return Eigen::Vector3d(0.0, 0.0, 0.0);
-}
+#include <iomanip>
 
-Eigen::Vector3d GetGyroBiasEstimate(double time) {
-  return Eigen::Vector3d(0.00, 0.00, 0.00);
-}
+#include "../gen/keys.h"
+#include "createFactors.h"
+#include "data.h"
+#include "loadKittiData.h"
 
-void AppendOtherFactors(std::vector<sym::Factord> &factors);
+Eigen::Vector3d GetAccelBiasEstimate(double time) { return Eigen::Vector3d(0.0, 0.0, 0.0); }
 
-std::vector<ImuMeasurement>
-GetMeasurementsBetween(double start_time, double end_time,
-                       const std::vector<ImuMeasurement> &imu_measurements) {
+Eigen::Vector3d GetGyroBiasEstimate(double time) { return Eigen::Vector3d(0.00, 0.00, 0.00); }
+
+std::vector<ImuMeasurement> GetMeasurementsBetween(double start_time, double end_time, const std::vector<ImuMeasurement> &imu_measurements) {
   std::vector<ImuMeasurement> result;
   for (const auto &meas : imu_measurements) {
     if (meas.time >= start_time && meas.time <= end_time) {
@@ -32,72 +28,78 @@ GetMeasurementsBetween(double start_time, double end_time,
   return result;
 }
 
-std::pair<sym::Valuesd, std::vector<sym::Factord>>
-buildValuesAndFactors(const std::vector<ImuMeasurement> &imu_measurements,
-                      const std::vector<GpsMeasurement> &gps_measurements) {
-  // Build Values
+std::pair<sym::Valuesd, std::vector<sym::Factord>> buildValuesAndFactors(const std::vector<ImuMeasurement> &imu_measurements, const std::vector<GpsMeasurement> &gps_measurements,
+                                                                         KittiCalibration kitti_calibration) {
   sym::Valuesd values;
   std::vector<sym::Factord> factors;
-  int first_gps_pose = 0;
-  int gps_skip = 10;
-  const Eigen::Vector3d accel_cov = Eigen::Vector3d::Constant(1e-5);
-  const Eigen::Vector3d gyro_cov = Eigen::Vector3d::Constant(1e-5);
 
-  // gravity should point towards the direction of accelerometer
-  // ENU
-  values.Set({Var::GRAVITY}, Eigen::Vector3d(0.0, 0.0, -9.81));
-  values.Set({Var::EPSILON}, sym::kDefaultEpsilond);
+  Eigen::Vector3d accel_cov = Eigen::Vector3d::Constant(std::pow(kitti_calibration.accelerometer_sigma, 2));
+  Eigen::Vector3d gyro_cov = Eigen::Vector3d::Constant(std::pow(kitti_calibration.gyroscope_sigma, 2));
 
-  for (size_t i = first_gps_pose; i < gps_measurements.size() - 1; i++) {
+  // CONSTANTS
+  values.Set({sym::Keys::GRAVITY}, Eigen::Vector3d(0.0, 0.0, -9.81));
+  values.Set({sym::Keys::EPSILON}, sym::kDefaultEpsilond);
+  values.Set({sym::Keys::SQRT_INFO}, Eigen::Matrix<double, 6, 6>::Identity());
+  values.Set(sym::Keys::ACCEL_BIAS_DIAG_SQRT_INFO, Eigen::Vector3d::Constant(kitti_calibration.accelerometer_bias_sigma));
+  values.Set(sym::Keys::GYRO_BIAS_DIAG_SQRT_INFO, Eigen::Vector3d::Constant(kitti_calibration.gyroscope_bias_sigma));
+  std::cout << "num gps measurements: " << gps_measurements.size() << std::endl;
 
-    if (i == first_gps_pose) {
-      // TODO: create initial estimate and prior
+  // const int NUM_FACTORS = gps_measurements.size() - 1;
+  const int NUM_FACTORS = 5;
+
+  // NOTE: we run this on the basis that a factor is created in the loop between i and i+1, not between i and i-1
+
+  sym::Pose3d current_pose = sym::Pose3d();
+  Eigen::Vector3d current_velocity = Eigen::Vector3d::Zero();
+  Eigen::Vector3d current_accel_bias_estimate = Eigen::Vector3d::Zero();
+  Eigen::Vector3d current_gyro_bias_estimate = Eigen::Vector3d::Zero();
+
+  /// ITERATE one pose at a time and optimize
+  for (size_t i = 0; i < NUM_FACTORS; i++) {
+    values.Set(sym::Keys::ACCEL_BIAS.WithSuper(i), current_accel_bias_estimate);
+    values.Set(sym::Keys::VELOCITY.WithSuper(i), current_velocity);
+    values.Set(sym::Keys::POSE.WithSuper(i), current_pose);
+    values.Set(sym::Keys::GYRO_BIAS.WithSuper(i), current_gyro_bias_estimate);
+    values.Set(sym::Keys::MEASURED_POSE.WithSuper(i), sym::Pose3d(sym::Rot3d(), gps_measurements[i].position));
+    if (i == 0) {
+      continue;
     }
 
-    const std::vector<ImuMeasurement> selected_imu_measurements =
-        GetMeasurementsBetween(gps_measurements[i - 1], gps_measurements[i],
-                               imu_measurements);
-    sym::ImuPreintegrator<double> integrator(accel_bias, gyro_bias);
+    if (i > NUM_FACTORS - 1) {
+      continue;
+    }
 
-    // Integrate the measurrements together
+    // IMU factor
+    double sum_dt = 0.0;
+    const std::vector<ImuMeasurement> selected_imu_measurements = GetMeasurementsBetween(gps_measurements[i - 1].time, gps_measurements[i].time, imu_measurements);
+    sym::ImuPreintegrator<double> integrator(current_accel_bias_estimate, current_gyro_bias_estimate);
     for (const auto &meas : selected_imu_measurements) {
-      integrator.IntegrateMeasurement(meas.accelerometer, meas.gyroscope,
-                                      accel_cov, gyro_cov, meas.dt);
+      sum_dt += meas.dt;
+      integrator.IntegrateMeasurement(meas.accelerometer, meas.gyroscope, accel_cov, gyro_cov, meas.dt);
     }
-    // add single ImuFactor from the pre-integrated IMU measurrements
-    factors.push_back(sym::ImuFactor<double>(integrator)
-                          .Factor({{Var::POSE, i},
-                                   {Var::VELOCITY, i},
-                                   {Var::POSE, i + 1},
-                                   {Var::VELOCITY, i + 1},
-                                   {Var::ACCEL_BIAS, i},
-                                   {Var::GYRO_BIAS, i},
-                                   {Var::GRAVITY},
-                                   {Var::EPSILON}}));
+    factors.push_back(createImuFactor(i, integrator));
+    values.Set(sym::Keys::TIME_DELTA.WithSuper(i), sum_dt);
 
-    // add between factors for bias
-    // TODO: create these factors in generate.py
-    factors.push_back(accel_bias_factor);
-    factors.push_back(gyro_bias_factor);
+    // Bias factors
+    factors.push_back(createAccelBiasFactor(i));
+    factors.push_back(createGyroBiasFactor(i));
+    factors.push_back(createPoseFactor(i));
 
-    if (i % gps_skip == 0) {
-      // add relative factor for gps
-      // PriorFactorPose3
-      // ssqrt for rot should be zeros
-      // prior - value
-      factors.push_back(sym::Factord::Hessian(
-          sym::PriorFactorPose3<double>,
-          {sym::Keys::POSE.WithSuper(i + 1), sym::Keys::POSE.WithSuper(i),
-           sym::Keys::SQRT_INFO, sym::Keys::epsilon}));
-    }
+    std::cout << "Optimizing.." << std::endl;
+    sym::optimizer_params_t optimizer_params = sym::DefaultOptimizerParams();
+    // optimizer_params.debug_checks = true;
+    // optimizer_params.verbose = true;
+    optimizer_params.debug_stats = true;
+    sym::Optimizerd optimizer(optimizer_params, factors);
+    // std::cout << values;
+    optimizer.Optimize(values);
 
-    values.Set({Var::POSE, i},
-               sym::Pose3d(sym::Rot3d(), gps_measurements[i].position));
-    // use IMU prediction here
-    values.Set({Var::VELOCITY, i}, Eigen::Vector3d::Zero());
+    sym::Pose3d current_pose = values.At<sym::Pose3d>(sym::Keys::POSE.WithSuper(i));
+    current_velocity = values.At<Eigen::Vector3d>(sym::Keys::VELOCITY.WithSuper(i));
+    current_accel_bias_estimate = values.At<Eigen::Vector3d>(sym::Keys::ACCEL_BIAS.WithSuper(i));
+    current_gyro_bias_estimate = values.At<Eigen::Vector3d>(sym::Keys::GYRO_BIAS.WithSuper(i));
 
-    values.Set({Var::ACCEL_BIAS, i}, GetAccelBiasEstimate(i));
-    values.Set({Var::GYRO_BIAS, i}, GetGyroBiasEstimate(i));
+    std::cout << "pose at " << i << " is " << current_pose;
   }
 
   return {values, factors};
@@ -112,13 +114,23 @@ int main() {
 
   visualizeData(imu_measurements, gps_measurements, 2);
 
-  auto [values, factors] =
-      buildValuesAndFactors(imu_measurements, gps_measurements);
+  auto [values, factors] = buildValuesAndFactors(imu_measurements, gps_measurements, kitti_calibration);
 
-  sym::Optimizerd optimizer(sym::DefaultOptimizerParams(), factors);
-  optimizer.Optimize(values);
+  // std::cout << "factors: " << factors;
 
-  visualizeTrajectory(values, gps_measurements);
+  // std::cout << "Optimizing.." << std::endl;
+  // sym::optimizer_params_t optimizer_params = sym::DefaultOptimizerParams();
+  // optimizer_params.debug_checks = true;
+  // optimizer_params.verbose = true;
+  // optimizer_params.debug_stats = true;
+  // // optimizer_params.check_derivatives = false;
+  // // optimizer_params.include_jacobians = false;
+
+  // sym::Optimizerd optimizer(optimizer_params, factors);
+  // optimizer.Optimize(values);
+  // std::cout << "values: " << values;
+
+  visualizeTrajectory(values, gps_measurements, 5);
 
   return 0;
 }
