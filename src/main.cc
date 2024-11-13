@@ -33,8 +33,8 @@ std::pair<sym::Valuesd, std::vector<sym::Factord>> buildValuesAndFactors(const s
   sym::Valuesd values;
   std::vector<sym::Factord> factors;
 
-  Eigen::Vector3d accel_cov = Eigen::Vector3d::Constant(std::pow(kitti_calibration.accelerometer_sigma, 2));
-  Eigen::Vector3d gyro_cov = Eigen::Vector3d::Constant(std::pow(kitti_calibration.gyroscope_sigma, 2));
+  Eigen::Vector3d accel_cov = Eigen::Vector3d::Constant(1 / kitti_calibration.accelerometer_sigma);
+  Eigen::Vector3d gyro_cov = Eigen::Vector3d::Constant(1 / kitti_calibration.gyroscope_sigma);
 
   // CONSTANTS
   values.Set({sym::Keys::GRAVITY}, Eigen::Vector3d(0.0, 0.0, -9.81));
@@ -52,7 +52,7 @@ std::pair<sym::Valuesd, std::vector<sym::Factord>> buildValuesAndFactors(const s
   // const sym::Matrix66d sqrt_info = sym::Vector6d::Constant(1 / sigma).asDiagonal();
 
   // const int NUM_FACTORS = gps_measurements.size() - 1;
-  const int NUM_FACTORS = 15;
+  const int NUM_FACTORS = 25;
 
   // NOTE: we run this on the basis that a factor is created in the loop between i and i+1, not between i and i-1
 
@@ -69,10 +69,6 @@ std::pair<sym::Valuesd, std::vector<sym::Factord>> buildValuesAndFactors(const s
     values.Set(sym::Keys::GYRO_BIAS.WithSuper(i), current_gyro_bias_estimate);
     values.Set(sym::Keys::MEASURED_POSE.WithSuper(i), sym::Pose3d(sym::Rot3d(), gps_measurements[i].position));
     if (i == 0) {
-      continue;
-    }
-
-    if (i > NUM_FACTORS - 1) {
       continue;
     }
 
@@ -151,7 +147,7 @@ int main() {
   // optimizer.Optimize(values);
   // std::cout << "values: " << values;
 
-  visualizeTrajectory(values, gps_measurements, 15);
+  visualizeTrajectory(values, gps_measurements, 25);
 
   return 0;
 }
