@@ -59,7 +59,7 @@ void visualizeData(const std::vector<ImuMeasurement> &imu_measurements, const st
   // Limit the number of measurements to display
   size_t gps_to_display = std::min(num_to_visualize, gps_measurements.size());
   size_t imu_to_display = std::min(num_to_visualize, imu_measurements.size());
-
+  std::cout << "Number of GPS measurements: " << gps_measurements.size() << std::endl;
   std::cout << "Sample GPS Measurements:\n";
   std::cout << std::setw(10) << "Time" << std::setw(15) << "Position (X)" << std::setw(15) << "Position (Y)" << std::setw(15) << "Position (Z)"
             << "\n";

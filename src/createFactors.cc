@@ -32,8 +32,10 @@ sym::Factord createGyroBiasFactor(const int i) {
                                {sym::Keys::GYRO_BIAS.WithSuper(i - 1), sym::Keys::GYRO_BIAS.WithSuper(i)});
 }
 
+// TODO could use PriorFactorPose3Position instead
 sym::Factord createPoseFactor(const int i) {
-  return sym::Factord::Hessian(sym::PriorFactorPose3<double>, {sym::Keys::POSE.WithSuper(i), sym::Keys::MEASURED_POSE.WithSuper(i), sym::Keys::SQRT_INFO, sym::Keys::EPSILON});
+  return sym::Factord::Hessian(sym::PriorFactorPose3<double>, {sym::Keys::POSE.WithSuper(i), sym::Keys::MEASURED_POSE.WithSuper(i), sym::Keys::SQRT_INFO, sym::Keys::EPSILON},
+                               {sym::Keys::POSE.WithSuper(i)});
 }
 sym::Factord createImuFactor(const int i, sym::ImuPreintegrator<double> integrator) {
   return sym::ImuFactor<double>(integrator)

@@ -39,13 +39,20 @@ std::pair<sym::Valuesd, std::vector<sym::Factord>> buildValuesAndFactors(const s
   // CONSTANTS
   values.Set({sym::Keys::GRAVITY}, Eigen::Vector3d(0.0, 0.0, -9.81));
   values.Set({sym::Keys::EPSILON}, sym::kDefaultEpsilond);
-  values.Set({sym::Keys::SQRT_INFO}, Eigen::Matrix<double, 6, 6>::Identity());
-  values.Set(sym::Keys::ACCEL_BIAS_DIAG_SQRT_INFO, Eigen::Vector3d::Constant(kitti_calibration.accelerometer_bias_sigma));
-  values.Set(sym::Keys::GYRO_BIAS_DIAG_SQRT_INFO, Eigen::Vector3d::Constant(kitti_calibration.gyroscope_bias_sigma));
-  std::cout << "num gps measurements: " << gps_measurements.size() << std::endl;
+
+  Eigen::Matrix<double, 6, 6> sqrt_info = Eigen::Matrix<double, 6, 6>::Zero();
+  // GTSAM uses the precision matrix (information matrix) while symforce uses the square root of this
+  sqrt_info.diagonal().segment<3>(3) = Eigen::Vector3d::Constant(1.0 / std::sqrt(0.07)).array().sqrt();
+
+  values.Set({sym::Keys::SQRT_INFO}, sqrt_info);
+
+  values.Set(sym::Keys::ACCEL_BIAS_DIAG_SQRT_INFO, Eigen::Vector3d::Constant(1 / kitti_calibration.accelerometer_bias_sigma));
+  values.Set(sym::Keys::GYRO_BIAS_DIAG_SQRT_INFO, Eigen::Vector3d::Constant(1 / kitti_calibration.gyroscope_bias_sigma));
+
+  // const sym::Matrix66d sqrt_info = sym::Vector6d::Constant(1 / sigma).asDiagonal();
 
   // const int NUM_FACTORS = gps_measurements.size() - 1;
-  const int NUM_FACTORS = 5;
+  const int NUM_FACTORS = 15;
 
   // NOTE: we run this on the basis that a factor is created in the loop between i and i+1, not between i and i-1
 
@@ -78,7 +85,13 @@ std::pair<sym::Valuesd, std::vector<sym::Factord>> buildValuesAndFactors(const s
       integrator.IntegrateMeasurement(meas.accelerometer, meas.gyroscope, accel_cov, gyro_cov, meas.dt);
     }
     factors.push_back(createImuFactor(i, integrator));
-    values.Set(sym::Keys::TIME_DELTA.WithSuper(i), sum_dt);
+    if (i == 1) {
+      values.Set(sym::Keys::TIME_DELTA.WithSuper(i), 0.0);
+
+    } else {
+      std::cout << "sum dt " << sum_dt << std::endl;
+      values.Set(sym::Keys::TIME_DELTA.WithSuper(i), sum_dt);
+    }
 
     // Bias factors
     factors.push_back(createAccelBiasFactor(i));
@@ -89,7 +102,8 @@ std::pair<sym::Valuesd, std::vector<sym::Factord>> buildValuesAndFactors(const s
     sym::optimizer_params_t optimizer_params = sym::DefaultOptimizerParams();
     // optimizer_params.debug_checks = true;
     // optimizer_params.verbose = true;
-    optimizer_params.debug_stats = true;
+    // optimizer_params.debug_stats = true;
+    // optimizer_params.check_derivatives = true;
     sym::Optimizerd optimizer(optimizer_params, factors);
     // std::cout << values;
     optimizer.Optimize(values);
@@ -99,7 +113,14 @@ std::pair<sym::Valuesd, std::vector<sym::Factord>> buildValuesAndFactors(const s
     current_accel_bias_estimate = values.At<Eigen::Vector3d>(sym::Keys::ACCEL_BIAS.WithSuper(i));
     current_gyro_bias_estimate = values.At<Eigen::Vector3d>(sym::Keys::GYRO_BIAS.WithSuper(i));
 
-    std::cout << "pose at " << i << " is " << current_pose;
+    std::cout << "Optimized pose at " << i << " is " << current_pose.Position().transpose() << ", measured pose is " << gps_measurements[i].position.transpose() << std::endl;
+
+    std::cout << "Velocity at " << i << ": " << current_velocity.transpose() << std::endl;
+    std::cout << "Accelerometer Bias at " << i << ": " << current_accel_bias_estimate.transpose() << std::endl;
+    std::cout << "Gyroscope Bias at " << i << ": " << current_gyro_bias_estimate.transpose() << std::endl;
+    current_accel_bias_estimate = Eigen::Vector3d::Zero();
+    current_gyro_bias_estimate = Eigen::Vector3d::Zero();
+    current_velocity = Eigen::Vector3d::Zero();
   }
 
   return {values, factors};
@@ -112,7 +133,7 @@ int main() {
 
   loadKittiData(kitti_calibration, imu_measurements, gps_measurements);
 
-  visualizeData(imu_measurements, gps_measurements, 2);
+  visualizeData(imu_measurements, gps_measurements, 12);
 
   auto [values, factors] = buildValuesAndFactors(imu_measurements, gps_measurements, kitti_calibration);
 
@@ -130,7 +151,7 @@ int main() {
   // optimizer.Optimize(values);
   // std::cout << "values: " << values;
 
-  visualizeTrajectory(values, gps_measurements, 5);
+  visualizeTrajectory(values, gps_measurements, 15);
 
   return 0;
 }

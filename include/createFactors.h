@@ -2,6 +2,7 @@
 #define CREATE_FACTORS_H
 #include <sym/factors/between_factor_matrix31.h>
 #include <sym/factors/prior_factor_pose3.h>
+#include <sym/factors/prior_factor_pose3_position.h>
 #include <sym/pose3.h>
 #include <sym/util/epsilon.h>
 #include <symforce/opt/factor.h>
