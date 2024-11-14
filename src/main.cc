@@ -39,10 +39,10 @@ void initializeValues(sym::Valuesd &values, const KittiCalibration &kitti_calibr
   values.Set(sym::Keys::GYRO_BIAS_DIAG_SQRT_INFO, Eigen::Vector3d::Constant(std::sqrt(1 / kitti_calibration.gyroscope_bias_sigma)));
 
   values.Set(sym::Keys::ACCEL_BIAS_PRIOR_SQRT_INFO,
-             Eigen::Matrix3d::Identity() * (1.0 / 0.100));  // Diagonal matrix with accelerometer bias
+             Eigen::Matrix3d::Identity() * (1.0 / std::sqrt(0.100)));  // Diagonal matrix with accelerometer bias
 
   values.Set(sym::Keys::GYRO_BIAS_PRIOR_SQRT_INFO,
-             Eigen::Matrix3d::Identity() * (1.0 / 5.00e-05));  // Diagonal matrix with gyroscope bias
+             Eigen::Matrix3d::Identity() * (1.0 / std::sqrt(5.00e-05)));  // Diagonal matrix with gyroscope bias
 
   values.Set(sym::Keys::VELOCITY_PRIOR_SQRT_INFO, Eigen::Matrix3d::Identity() * (std::sqrt(1000)));  // TODO double check this. it is what they use in gtsam?
 }
@@ -101,7 +101,7 @@ std::pair<sym::Valuesd, std::vector<sym::Factord>> buildValuesAndFactors(const s
       factors.push_back(createImuFactor(i, integrator));
       factors.push_back(createAccelBiasFactor(i));
       factors.push_back(createGyroBiasFactor(i));
-      if ((i % 1) == 0) {
+      if ((i % 2) == 0) {
         values.Set(sym::Keys::MEASURED_POSE.WithSuper(i), sym::Pose3d(sym::Rot3d(), gps_measurements[i].position));
         factors.push_back(createPriorPoseFactor(i));
       }
