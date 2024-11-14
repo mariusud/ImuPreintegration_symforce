@@ -1,5 +1,5 @@
 
-#include "data.h"
+#include "visualize.h"
 
 void visualizeTrajectory(const sym::Valuesd &optimized_values, const std::vector<GpsMeasurement> &gps_measurements, int NUM_FACTORS) {
   pcl::visualization::PCLVisualizer viewer("KITTI Trajectory Viewer");
@@ -34,7 +34,9 @@ void visualizeTrajectory(const sym::Valuesd &optimized_values, const std::vector
   for (size_t i = 1; i < optimized_imu_cloud->points.size(); ++i) {
     pcl::PointXYZ start_point = optimized_imu_cloud->points[i - 1];
     pcl::PointXYZ end_point = optimized_imu_cloud->points[i];
-    viewer.addLine(start_point, end_point, 1, 1, 1, "imu line" + std::to_string(i));
+    std::string line_id = "imu_line_" + std::to_string(i);
+    viewer.addLine(start_point, end_point, 1, 1, 1, line_id);
+    viewer.setShapeRenderingProperties(pcl::visualization::PCL_VISUALIZER_LINE_WIDTH, 3.0, line_id);
   }
 
   for (size_t i = 1; i < gps_measurements.size() - 1; i++) {

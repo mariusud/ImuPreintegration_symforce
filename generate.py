@@ -51,9 +51,12 @@ def generate_keys(output_dir: Path) -> None:
         # IMU quantities
         time_delta=sf.Scalar(),
         velocity=sf.V3(),
+        velocity_prior_sqrt_info=sf.M33(),
         accel_bias=sf.V3(),
         gyro_bias=sf.V3(),
         gravity=sf.V3(),
+        accel_bias_prior_sqrt_info=sf.M33(),
+        gyro_bias_prior_sqrt_info=sf.M33(),
         accel_bias_diag_sqrt_info=sf.V3(),
         gyro_bias_diag_sqrt_info=sf.V3(),
         # Relative pose quantities

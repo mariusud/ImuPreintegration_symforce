@@ -28,7 +28,7 @@ find_package(PCL  REQUIRED)
 include_directories(${PCL_INCLUDE_DIRS})
 
 
-add_executable(run_imu_preintegration src/main.cc src/data.cc src/loadKittiData.cc src/createFactors.cc)
+add_executable(run_imu_preintegration src/main.cc src/visualize.cc src/loadKittiData.cc src/createFactors.cc)
 
 # Add dependencies
 add_dependencies(

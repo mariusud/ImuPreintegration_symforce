@@ -12,17 +12,20 @@ namespace sym {
 
 namespace Keys {
 
-static const sym::Key POSE = 'p';                       // sym::Pose3<Scalar>
-static const sym::Key MEASURED_POSE = 'm';              // sym::Pose3<Scalar>
-static const sym::Key TIME_DELTA = 't';                 // Scalar
-static const sym::Key VELOCITY = 'v';                   // Eigen::Matrix<Scalar, 3, 1>
-static const sym::Key ACCEL_BIAS = 'a';                 // Eigen::Matrix<Scalar, 3, 1>
-static const sym::Key GYRO_BIAS = 'g';                  // Eigen::Matrix<Scalar, 3, 1>
-static const sym::Key GRAVITY = 'G';                    // Eigen::Matrix<Scalar, 3, 1>
-static const sym::Key ACCEL_BIAS_DIAG_SQRT_INFO = 'A';  // Eigen::Matrix<Scalar, 3, 1>
-static const sym::Key GYRO_BIAS_DIAG_SQRT_INFO = 'b';   // Eigen::Matrix<Scalar, 3, 1>
-static const sym::Key SQRT_INFO = 's';                  // Eigen::Matrix<Scalar, 6, 6>
-static const sym::Key EPSILON = 'e';                    // Scalar
+static const sym::Key POSE = 'p';                        // sym::Pose3<Scalar>
+static const sym::Key MEASURED_POSE = 'm';               // sym::Pose3<Scalar>
+static const sym::Key TIME_DELTA = 't';                  // Scalar
+static const sym::Key VELOCITY = 'v';                    // Eigen::Matrix<Scalar, 3, 1>
+static const sym::Key VELOCITY_PRIOR_SQRT_INFO = 'V';    // Eigen::Matrix<Scalar, 3, 3>
+static const sym::Key ACCEL_BIAS = 'a';                  // Eigen::Matrix<Scalar, 3, 1>
+static const sym::Key GYRO_BIAS = 'g';                   // Eigen::Matrix<Scalar, 3, 1>
+static const sym::Key GRAVITY = 'G';                     // Eigen::Matrix<Scalar, 3, 1>
+static const sym::Key ACCEL_BIAS_PRIOR_SQRT_INFO = 'A';  // Eigen::Matrix<Scalar, 3, 3>
+static const sym::Key GYRO_BIAS_PRIOR_SQRT_INFO = 'b';   // Eigen::Matrix<Scalar, 3, 3>
+static const sym::Key ACCEL_BIAS_DIAG_SQRT_INFO = 'B';   // Eigen::Matrix<Scalar, 3, 1>
+static const sym::Key GYRO_BIAS_DIAG_SQRT_INFO = 'd';    // Eigen::Matrix<Scalar, 3, 1>
+static const sym::Key SQRT_INFO = 's';                   // Eigen::Matrix<Scalar, 6, 6>
+static const sym::Key EPSILON = 'e';                     // Scalar
 
 }  // namespace Keys
 
