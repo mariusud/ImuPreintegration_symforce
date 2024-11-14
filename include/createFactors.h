@@ -18,6 +18,7 @@
 sym::Factord createAccelBiasFactor(const int i);
 sym::Factord createGyroBiasFactor(const int i);
 sym::Factord createImuFactor(const int i, sym::ImuPreintegrator<double> integrator);
+sym::Factord createMeasuredPoseFactor(const int i);
 
 // Prior factors
 sym::Factord createAccelBiasPriorFactor(const int i);
