@@ -52,6 +52,8 @@ def generate_keys(output_dir: Path) -> None:
         time_delta=sf.Scalar(),
         velocity=sf.V3(),
         velocity_prior_sqrt_info=sf.M33(),
+        accel_cov=sf.V3(),
+        gyro_cov=sf.V3(),
         accel_bias=sf.V3(),
         gyro_bias=sf.V3(),
         gravity=sf.V3(),

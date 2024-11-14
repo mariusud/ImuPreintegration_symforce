@@ -45,15 +45,15 @@ void initializeValues(sym::Valuesd &values, const KittiCalibration &kitti_calibr
              Eigen::Matrix3d::Identity() * (1.0 / std::sqrt(5.00e-05)));  // Diagonal matrix with gyroscope bias
 
   values.Set(sym::Keys::VELOCITY_PRIOR_SQRT_INFO, Eigen::Matrix3d::Identity() * (std::sqrt(1000)));  // TODO double check this. it is what they use in gtsam?
+
+  values.Set(sym::Keys::ACCEL_COV, Eigen::Vector3d::Constant(std::pow(kitti_calibration.accelerometer_sigma, 2)));
+  values.Set(sym::Keys::GYRO_COV, Eigen::Vector3d::Constant(std::pow(kitti_calibration.gyroscope_sigma, 2)));
 }
 
 std::pair<sym::Valuesd, std::vector<sym::Factord>> buildValuesAndFactors(const std::vector<ImuMeasurement> &imu_measurements, const std::vector<GpsMeasurement> &gps_measurements,
                                                                          KittiCalibration kitti_calibration) {
   sym::Valuesd values;
   std::vector<sym::Factord> factors;
-
-  Eigen::Vector3d accel_cov = Eigen::Vector3d::Constant(1 / kitti_calibration.accelerometer_sigma);  // Maybe squared?
-  Eigen::Vector3d gyro_cov = Eigen::Vector3d::Constant(1 / kitti_calibration.gyroscope_sigma);
 
   initializeValues(values, kitti_calibration);
 
@@ -92,7 +92,7 @@ std::pair<sym::Valuesd, std::vector<sym::Factord>> buildValuesAndFactors(const s
       sym::ImuPreintegrator<double> integrator(current_accel_bias_estimate, current_gyro_bias_estimate);
       for (const auto &meas : selected_imu_measurements) {
         sum_dt += meas.dt;
-        integrator.IntegrateMeasurement(meas.accelerometer, meas.gyroscope, accel_cov, gyro_cov, meas.dt);
+        integrator.IntegrateMeasurement(meas.accelerometer, meas.gyroscope, values.At<Eigen::Vector3d>(sym::Keys::ACCEL_COV), values.At<Eigen::Vector3d>(sym::Keys::GYRO_COV), meas.dt);
       }
       std::cout << "sum dt " << sum_dt << std::endl;
       values.Set(sym::Keys::TIME_DELTA.WithSuper(i), sum_dt);
