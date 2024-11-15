@@ -14,8 +14,8 @@
 #include "loadKittiData.h"
 #include "visualize.h"
 
-const int NUM_FACTORS = 7;
-const int GPS_SKIP = 2;
+const int NUM_FACTORS = 25;
+const int GPS_SKIP = 5;
 
 std::vector<ImuMeasurement> GetMeasurementsBetween(double start_time, double end_time, const std::vector<ImuMeasurement> &imu_measurements) {
   std::vector<ImuMeasurement> result;
@@ -25,6 +25,41 @@ std::vector<ImuMeasurement> GetMeasurementsBetween(double start_time, double end
     }
   }
   return result;
+}
+
+void PrintState(int state_index, const sym::Valuesd &values, const std::vector<GpsMeasurement> &gps_measurements) {
+  std::cout << "State at #" << state_index + 1 << "\n";
+
+  // Pose
+  auto current_pose = values.At<sym::Pose3d>(sym::Keys::POSE.WithSuper(state_index));
+  std::cout << "Pose:\n";
+  std::cout << "R: [\n";
+  std::cout << "  " << current_pose.Rotation().ToRotationMatrix().row(0) << ";\n";
+  std::cout << "  " << current_pose.Rotation().ToRotationMatrix().row(1) << ";\n";
+  std::cout << "  " << current_pose.Rotation().ToRotationMatrix().row(2) << "\n";
+  std::cout << "]\n";
+  std::cout << "t: " << current_pose.Position().transpose() << "\n";
+
+  // Velocity
+  auto current_velocity = values.At<Eigen::Vector3d>(sym::Keys::VELOCITY.WithSuper(state_index));
+  std::cout << "Velocity:\n" << current_velocity.transpose() << "\n";
+
+  // Biases
+  auto accel_bias = values.At<Eigen::Vector3d>(sym::Keys::ACCEL_BIAS.WithSuper(state_index));
+  auto gyro_bias = values.At<Eigen::Vector3d>(sym::Keys::GYRO_BIAS.WithSuper(state_index));
+  std::cout << "Bias:\n";
+  std::cout << "acc = " << accel_bias.transpose() << " ";
+  std::cout << "gyro = " << gyro_bias.transpose() << "\n";
+
+  // Sqrt Information
+  auto accel_sqrt_info = values.At<Eigen::Vector3d>(sym::Keys::ACCEL_BIAS_DIAG_SQRT_INFO.WithSuper(state_index));
+  auto gyro_sqrt_info = values.At<Eigen::Vector3d>(sym::Keys::GYRO_BIAS_DIAG_SQRT_INFO.WithSuper(state_index));
+  std::cout << "AccelerometerBias sqrt info at " << state_index << ": " << accel_sqrt_info.transpose() << "\n";
+  std::cout << "GyroscopeBias sqrt info at " << state_index << ": " << gyro_sqrt_info.transpose() << "\n";
+
+  // Pose comparison
+  std::cout << "Optimized pose at " << state_index << " is " << current_pose.Position().transpose();
+  std::cout << ", gps measured pose is " << gps_measurements[state_index].position.transpose() << std::endl;
 }
 
 void initializeValues(sym::Valuesd &values, const KittiCalibration &kitti_calibration) {
@@ -43,12 +78,11 @@ void initializeValues(sym::Valuesd &values, const KittiCalibration &kitti_calibr
   // IMU Bias information
 
   values.Set(sym::Keys::ACCEL_BIAS_PRIOR_SQRT_INFO,
-             Eigen::Matrix3d::Identity() * (1 / std::sqrt(0.100)));  // Diagonal matrix with accelerometer bias
-
+             Eigen::Matrix3d::Identity() * (1 / 0.1));  // Diagonal matrix with accelerometer bias
   values.Set(sym::Keys::GYRO_BIAS_PRIOR_SQRT_INFO,
-             Eigen::Matrix3d::Identity() * (1 / std::sqrt(5.00e-05)));  // Diagonal matrix with gyroscope bias
+             Eigen::Matrix3d::Identity() * (1 / 5.00e-05));  // Diagonal matrix with gyroscope bias
 
-  values.Set(sym::Keys::VELOCITY_PRIOR_SQRT_INFO, Eigen::Matrix3d::Identity() * (1 / std::sqrt(1000)));  // TODO double check this. it is what they use in gtsam?
+  values.Set(sym::Keys::VELOCITY_PRIOR_SQRT_INFO, Eigen::Matrix3d::Identity() * (1 / 1000));  // TODO double check this. it is what they use in gtsam?
 
   values.Set(sym::Keys::ACCEL_COV, Eigen::Vector3d::Constant(std::pow(kitti_calibration.accelerometer_sigma, 2)));
   values.Set(sym::Keys::GYRO_COV, Eigen::Vector3d::Constant(std::pow(kitti_calibration.gyroscope_sigma, 2)));
@@ -69,7 +103,6 @@ std::pair<sym::Valuesd, std::vector<sym::Factord>> buildValuesAndFactors(const s
   /// ITERATE one pose at a time and optimize
   const int first_pose = 1;
   for (size_t i = 0; i < NUM_FACTORS; i++) {
-    std::cout << " i " << i << std::endl;
     values.Set(sym::Keys::POSE.WithSuper(i), current_pose);
     values.Set(sym::Keys::VELOCITY.WithSuper(i), current_velocity);
     values.Set(sym::Keys::ACCEL_BIAS.WithSuper(i), current_accel_bias_estimate);
@@ -98,7 +131,6 @@ std::pair<sym::Valuesd, std::vector<sym::Factord>> buildValuesAndFactors(const s
         integrator.IntegrateMeasurement(meas.accelerometer, meas.gyroscope, values.At<Eigen::Vector3d>(sym::Keys::ACCEL_COV), values.At<Eigen::Vector3d>(sym::Keys::GYRO_COV), meas.dt);
       }
 
-      std::cout << "sum dt " << sum_dt << " num " << selected_imu_measurements.size() << std::endl;
       values.Set(sym::Keys::TIME_DELTA.WithSuper(i), sum_dt);
 
       int sqrt_num_measurements = std::sqrt(selected_imu_measurements.size());
@@ -111,7 +143,7 @@ std::pair<sym::Valuesd, std::vector<sym::Factord>> buildValuesAndFactors(const s
       factors.push_back(createAccelBiasFactor(i));
       factors.push_back(createGyroBiasFactor(i));
       if ((i % GPS_SKIP) == 0 && i > 1) {
-        values.Set(sym::Keys::MEASURED_POSE.WithSuper(i), sym::Pose3d(sym::Rot3d(), gps_measurements[i].position));
+        values.Set(sym::Keys::MEASURED_POSE.WithSuper(i), sym::Pose3d(current_pose.Rotation(), gps_measurements[i].position));
         factors.push_back(createMeasuredPoseFactor(i));
       }
     }
@@ -128,12 +160,7 @@ std::pair<sym::Valuesd, std::vector<sym::Factord>> buildValuesAndFactors(const s
       current_accel_bias_estimate = values.At<Eigen::Vector3d>(sym::Keys::ACCEL_BIAS.WithSuper(i));
       current_gyro_bias_estimate = values.At<Eigen::Vector3d>(sym::Keys::GYRO_BIAS.WithSuper(i));
 
-      std::cout << "Optimized pose at " << i << " is " << current_pose.Position().transpose() << ", gps measured pose is " << gps_measurements[i].position.transpose() << std::endl;
-      std::cout << "Velocity at " << i << ": " << current_velocity.transpose() << std::endl;
-      std::cout << "Accelerometer Bias at " << i << ": " << values.At<Eigen::Vector3d>(sym::Keys::ACCEL_BIAS.WithSuper(i)).transpose() << std::endl;
-      std::cout << "AccelerometerBias sqrt info at " << i << ": " << values.At<Eigen::Vector3d>(sym::Keys::ACCEL_BIAS_DIAG_SQRT_INFO.WithSuper(i)).transpose() << std::endl;
-      std::cout << "Gyroscope Bias at " << i << ": " << values.At<Eigen::Vector3d>(sym::Keys::GYRO_BIAS.WithSuper(i)).transpose() << std::endl;
-      std::cout << "Gyroscope Bias sqrt info at " << i << ": " << values.At<Eigen::Vector3d>(sym::Keys::GYRO_BIAS_DIAG_SQRT_INFO.WithSuper(i)).transpose() << std::endl;
+      PrintState(i, values, gps_measurements);
     }
   }
 
