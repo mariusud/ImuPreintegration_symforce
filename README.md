@@ -2,7 +2,11 @@
 
 # KITTI dataset
 
+We use the KITTI dataset for
+
 https://github.com/borglab/gtsam/blob/develop/examples/IMUKittiExampleGPS.cpp
+
+Sample IMU and GPS measurements from KITTI are displayed below:
 
 ```plaintext
 -- Reading sensor metadata
@@ -26,11 +30,11 @@ Sample IMU Pose: 16.9163 32.9653  0.1704	Sample GPS Pose: 16.9163 32.9653  0.170
 
 ```
 
-![alt text](assets/image.png)
+![alt text](assets/kitti_trajectory.png)
 
 # Installation
 
-You can run the example in the dockerfile
+To run the example, you can use Docker. The provided docker-compose.yml file sets up the necessary environment for running the IMU preintegration example.
 
 ```
 docker-compose up --build

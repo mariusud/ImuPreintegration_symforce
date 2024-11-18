@@ -14,8 +14,7 @@
 #include "loadKittiData.h"
 #include "visualize.h"
 
-const int NUM_FACTORS = 25;
-const int GPS_SKIP = 5;
+const int GPS_SKIP = 10;
 
 std::vector<ImuMeasurement> GetMeasurementsBetween(double start_time, double end_time, const std::vector<ImuMeasurement> &imu_measurements) {
   std::vector<ImuMeasurement> result;
@@ -102,7 +101,7 @@ std::pair<sym::Valuesd, std::vector<sym::Factord>> buildValuesAndFactors(const s
 
   /// ITERATE one pose at a time and optimize
   const int first_pose = 1;
-  for (size_t i = 0; i < NUM_FACTORS; i++) {
+  for (size_t i = 0; i < gps_measurements.size(); i++) {
     values.Set(sym::Keys::POSE.WithSuper(i), current_pose);
     values.Set(sym::Keys::VELOCITY.WithSuper(i), current_velocity);
     values.Set(sym::Keys::ACCEL_BIAS.WithSuper(i), current_accel_bias_estimate);
@@ -151,7 +150,7 @@ std::pair<sym::Valuesd, std::vector<sym::Factord>> buildValuesAndFactors(const s
     if (i > (1)) {
       std::cout << "Optimizing.." << std::endl;
       sym::optimizer_params_t optimizer_params = sym::DefaultOptimizerParams();
-      optimizer_params.debug_checks = true;
+
       sym::Optimizerd optimizer(optimizer_params, factors);
       optimizer.Optimize(values);
 
@@ -160,7 +159,9 @@ std::pair<sym::Valuesd, std::vector<sym::Factord>> buildValuesAndFactors(const s
       current_accel_bias_estimate = values.At<Eigen::Vector3d>(sym::Keys::ACCEL_BIAS.WithSuper(i));
       current_gyro_bias_estimate = values.At<Eigen::Vector3d>(sym::Keys::GYRO_BIAS.WithSuper(i));
 
-      PrintState(i, values, gps_measurements);
+      if (i < 5) {
+        PrintState(i, values, gps_measurements);
+      }
     }
   }
 
@@ -177,7 +178,7 @@ int main() {
 
   auto [values, factors] = buildValuesAndFactors(imu_measurements, gps_measurements, kitti_calibration);
 
-  visualizeTrajectory(values, gps_measurements, NUM_FACTORS);
+  visualizeTrajectory(values, gps_measurements, gps_measurements.size());
 
   return 0;
 }
