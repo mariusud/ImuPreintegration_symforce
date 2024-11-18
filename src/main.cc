@@ -148,7 +148,7 @@ std::pair<sym::Valuesd, std::vector<sym::Factord>> buildValuesAndFactors(const s
     }
 
     if (i > (1)) {
-      std::cout << "Optimizing.." << std::endl;
+      // std::cout << "Optimizing.." << std::endl;
       sym::optimizer_params_t optimizer_params = sym::DefaultOptimizerParams();
 
       sym::Optimizerd optimizer(optimizer_params, factors);

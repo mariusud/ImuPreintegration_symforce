@@ -1,7 +1,12 @@
 #ifndef LOAD_KITTI_DATA_H
 #define LOAD_KITTI_DATA_H
 
+#include <spdlog/spdlog.h>
+
 #include <Eigen/Dense>
+#include <fstream>
+#include <iostream>
+#include <string>
 #include <vector>
 
 struct KittiCalibration {
@@ -23,18 +28,16 @@ struct ImuMeasurement {
   double time;
   double dt;
   Eigen::Vector3d accelerometer;
-  Eigen::Vector3d gyroscope; // omega
+  Eigen::Vector3d gyroscope;
 };
 
 struct GpsMeasurement {
   double time;
-  Eigen::Vector3d position; // x,y,z
+  Eigen::Vector3d position;
 };
 
-void loadKittiData(KittiCalibration &kitti_calibration,
-                   std::vector<ImuMeasurement> &imu_measurements,
-                   std::vector<GpsMeasurement> &gps_measurements);
+bool openFile(std::ifstream &file, const std::string &filename);
 
-std::string findExampleDataFile(const std::string &name);
+void loadKittiData(KittiCalibration &kitti_calibration, std::vector<ImuMeasurement> &imu_measurements, std::vector<GpsMeasurement> &gps_measurements);
 
-#endif // LOAD_KITTI_DATA_H
+#endif  // LOAD_KITTI_DATA_H

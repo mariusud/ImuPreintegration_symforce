@@ -34,6 +34,7 @@ add_executable(run_imu_preintegration src/main.cc src/visualize.cc src/loadKitti
 add_dependencies(
     run_imu_preintegration
     Eigen3::Eigen
+    spdlog::spdlog
     fmt::fmt
     spdlog::spdlog
     symforce::opt
@@ -47,6 +48,7 @@ target_link_libraries(
     run_imu_preintegration
     ${PCL_LIBRARIES}
     Eigen3::Eigen
+    spdlog::spdlog
     fmt::fmt
     spdlog::spdlog
     symforce::opt

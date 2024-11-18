@@ -1,10 +1,16 @@
 # IMU preintegration with Symforce
 
+This repository
+provides
+an implementation of a factor graph with IMU preintegration in symforce (C++). We use GPS measurements for pose factors, the symforce/slam ImuFactor as well as between factors for Accelerometer and Gyroscope bias. In createFactors.h we provide the implementation for adding the factors.
+The first timestep also has a prior factor on pose, velocity, and accelometer/gyroscope bias.
+
 # KITTI dataset
 
-We use the KITTI dataset for
+![alt text](assets/kitti_trajectory.png)
 
-https://github.com/borglab/gtsam/blob/develop/examples/IMUKittiExampleGPS.cpp
+We use the KITTI dataset and closely replicate the IMU preintegration example from GTSAM (https://github.com/borglab/gtsam/blob/develop/examples/IMUKittiExampleGPS.cpp
+)
 
 Sample IMU and GPS measurements from KITTI are displayed below:
 
@@ -30,12 +36,11 @@ Sample IMU Pose: 16.9163 32.9653  0.1704	Sample GPS Pose: 16.9163 32.9653  0.170
 
 ```
 
-![alt text](assets/kitti_trajectory.png)
-
 # Installation
 
-To run the example, you can use Docker. The provided docker-compose.yml file sets up the necessary environment for running the IMU preintegration example.
+To run the example, you can build locally with cmake or use Docker. The provided docker-compose.yml file sets up the necessary environment for running the IMU preintegration example.
 
 ```
-docker-compose up --build
+xhost +
+docker-compose down && docker-compose up --build
 ```

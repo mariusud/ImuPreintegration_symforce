@@ -13,16 +13,6 @@
 
 #include "../gen/keys.h"
 #include "loadKittiData.h"
-// struct ImuMeasurement {
-//   Eigen::Vector3d acceleration;
-//   Eigen::Vector3d angular_velocity;
-//   double timestamp;
-// };
-
-// struct GpsMeasurement {
-//   double time;
-//   Eigen::Vector3d position; // x, y, z
-// };
 
 void createExampleStraightTrajectory(std::vector<ImuMeasurement> &imu_measurements, std::vector<GpsMeasurement> &gps_measurements);
 
