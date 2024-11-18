@@ -27,3 +27,11 @@ Sample IMU Pose: 16.9163 32.9653  0.1704	Sample GPS Pose: 16.9163 32.9653  0.170
 ```
 
 ![alt text](assets/image.png)
+
+# Installation
+
+You can run the example in the dockerfile
+
+```
+docker-compose up --build
+```

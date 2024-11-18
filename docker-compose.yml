@@ -1,0 +1,11 @@
+version: '3.0'
+
+services:
+  factor-graph-symforce:
+    build: .
+    privileged: true
+    environment:
+      - DISPLAY=$DISPLAY
+      - /tmp/.X11-unix:/tmp/.X11-unix  
+    network_mode: "host" 
+    # mem_limit: 4g  # Limit memory to 4 GB
