@@ -151,7 +151,7 @@ std::pair<sym::Valuesd, std::vector<sym::Factord>> buildValuesAndFactors(const s
       current_accel_bias_estimate = values.At<Eigen::Vector3d>(sym::Keys::ACCEL_BIAS.WithSuper(i));
       current_gyro_bias_estimate = values.At<Eigen::Vector3d>(sym::Keys::GYRO_BIAS.WithSuper(i));
 
-      if (i == gps_measurements.size()) {
+      if (i == gps_measurements.size() - 1) {
         PrintState(i, values, gps_measurements);
       }
     }
