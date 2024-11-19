@@ -58,4 +58,4 @@ docker-compose down && docker-compose up --build
 
 ## Related Publications:
 
-- Forster C, Carlone L, Dellaert F, et al. **On-Manifold Preintegration for Real-Time Visual--Inertial Odometry**. IEEE Transactions on Robotics, 2017, 33(1): 1-21. **[PDF](http://rpg.ifi.uzh.ch/docs/TRO16_forster.pdf)**.
+- Forster C, Carlone L, Dellaert F, et al. **On-Manifold Preintegration for Real-Time Visual-Inertial Odometry**. IEEE Transactions on Robotics, 2017, 33(1): 1-21. **[PDF](http://rpg.ifi.uzh.ch/docs/TRO16_forster.pdf)**.
