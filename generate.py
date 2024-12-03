@@ -45,6 +45,11 @@ def generate_bias_between_factor_residual_code(output_dir: Path) -> None:
 
 def generate_keys(output_dir: Path) -> None:
     values = Values(
+        # priors
+        prior_pose=sf.Pose3(),
+        prior_velocity=sf.V3(),
+        prior_accel_bias=sf.V3(),
+        prior_gyro_bias=sf.V3(),
         # Pose quantities
         pose=sf.Pose3(),
         measured_pose=sf.Pose3(),
